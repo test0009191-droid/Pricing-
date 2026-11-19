@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Price Finder</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{--bg:#fbf8f1;--card:#fffefb;--tx:#2b2a27;--mut:#8a867c;--bd:#ece6d8;--ac:#2f6f5e;--acx:#fff;--soft:#f3eee1;--bad:#b3402f;--sh:0 1px 2px rgba(60,50,30,.05),0 8px 24px rgba(60,50,30,.06)}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--tx)}
+.wrap{max-width:1040px;margin:0 auto;padding:22px 16px 48px}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
+h1{font-size:24px;margin:0;letter-spacing:-.3px}
+#count{color:var(--mut);font-size:13px;margin-top:2px}
+.acts,.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.row{margin:12px 0}
+button,label.btn{font:inherit;font-size:14px;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:9px 16px;border-radius:10px;cursor:pointer;transition:background .15s,border-color .15s}
+button:hover,label.btn:hover{background:var(--soft)}
+button.main{background:var(--ac);color:var(--acx);border-color:var(--ac);font-weight:600}
+button.main:hover{filter:brightness(1.08);background:var(--ac)}
+button.ghost{background:transparent;border-color:transparent;color:var(--mut);padding:6px 10px}
+button.ghost:hover{color:var(--bad);background:transparent}
+button:focus-visible,textarea:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.acct{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px 14px;box-shadow:var(--sh)}
+.lbl{font-weight:600;color:var(--mut);font-size:13px;text-transform:uppercase;letter-spacing:.5px}
+select{font:inherit;padding:9px 12px;border-radius:10px;border:1px solid var(--bd);background:#fff;color:var(--tx);min-width:190px}
+.tabs{display:inline-flex;gap:4px;background:var(--soft);padding:4px;border-radius:12px;margin:18px 0 14px}
+.tabs button{border:0;background:transparent;padding:9px 20px;border-radius:9px;color:var(--mut);font-weight:600}
+.tabs button.on{background:#fff;color:var(--tx);box-shadow:0 1px 3px rgba(60,50,30,.12)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px;box-shadow:var(--sh)}
+.ttl{font-weight:600;margin-bottom:8px}
+textarea{width:100%;height:150px;font:13px ui-monospace,Consolas,monospace;padding:12px;border:1px solid var(--bd);border-radius:12px;background:#fff;color:var(--tx);resize:vertical}
+input[type=number],input[type=search]{font:inherit;padding:7px 9px;border:1px solid var(--bd);border-radius:8px;background:#fff;color:var(--tx);width:76px}
+input[type=search]{width:min(340px,100%)}
+input.ed{width:104px;text-align:right}
+.sum{color:var(--mut);font-size:13px}
+.tw{overflow:auto;max-height:62vh;margin-top:12px;border:1px solid var(--bd);border-radius:12px;background:#fff}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:#fcfaf4}
+td.d{white-space:normal;min-width:200px}
+th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px;position:sticky;top:0;background:var(--soft)}
+.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.miss td{color:var(--bad)}
+.tick{color:var(--ac);font-weight:700}
+.cf{border:1px solid var(--bad);border-radius:12px;padding:10px 12px;margin:10px 0;background:#fff7f4}
+.cf label{display:inline-block;margin:6px 16px 0 0}
+.sec{display:none}.sec.on{display:block}
+</style></head><body><div class="wrap">
+<header class="top">
+ <div><h1>Price Finder</h1><div id="count"></div></div>
+ <div class="acts">
+  <label class="btn">Import Excel<input id="imp" type="file" accept=".xlsx,.xls,.csv" hidden></label>
+  <button class="main" id="dl">Download Excel</button>
+ </div>
+</header>
+<div class="acct"><span class="lbl">Account</span><select id="acc"></select><button id="newacc">+ New account</button><button id="delacc" class="ghost">Delete account</button></div>
+<div class="tabs"><button id="b1" class="on">Find prices</button><button id="b2">Add prices</button><button id="b3">Edit list</button></div>
+<div id="t1" class="sec on card">
+ <div class="ttl">Paste item codes, one per line</div>
+ <textarea id="codes" placeholder="08021500459&#10;08021500460"></textarea>
+ <div class="row">
+  <button class="main" id="go">Find prices</button>
+  <label><input type="checkbox" id="showd" checked> Show with and without discount</label>
+  <label><input type="checkbox" id="dedupe"> Remove repeated codes</label>
+  <button id="copy">Copy table</button>
+  <button id="pdf">Download PDF</button>
+  <span class="sum" id="s1"></span>
+ </div>
+ <div class="tw"><table id="r1"></table></div>
+</div>
+
+<div id="t2" class="sec card">
+ <div class="ttl">Paste invoice lines (code, description, packing, qty, unit, price)</div>
+ <textarea id="inv" placeholder="Paste lines copied from the invoice"></textarea>
+ <div class="row">
+  <label><b>Discount on all lines?</b> <input type="checkbox" id="don"> Yes</label>
+  <label id="dpl">How much <input type="number" id="dp" value="7" min="0" max="99" step="0.1"> %</label>
+  <span class="sum" id="dh"></span>
+ </div>
+ <div id="cf"></div>
+ <div class="row"><button class="main" id="add">Add to list</button><span class="sum" id="s2"></span></div>
+ <div class="tw"><table id="r2"></table></div>
+</div>
+<div id="t3" class="sec card">
+ <div class="ttl">Saved prices in this account</div>
+ <div class="row" style="margin-top:0"><input id="q" type="search" placeholder="Search code or description"><span class="sum" id="s3"></span></div>
+ <div class="sum">Change a discount or price and it saves by itself. Editing "With discount" changes the saved price.</div>
+ <div class="tw"><table id="r3"></table></div>
+</div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=n=>(Math.round(n*10000)/10000).toFixed(4);
+const key=c=>String(c).trim().replace(/^0+/,'');
+let accts={},cur='',store={},meta={},out=[],parsed=[];
+try{meta=JSON.parse(localStorage.getItem('pfm')||'{}')}catch(e){}
+function saveMeta(){try{localStorage.setItem('pfm',JSON.stringify(meta))}catch(e){}}
+function syncDisc(){const on=$('don').checked;$('dpl').style.display=on?'':'none';$('dh').textContent=on?'Pasted prices already include it. You can change the % on any line below.':'Pasted prices are kept as they are. You can still add a % on any line below.'}
+try{accts=JSON.parse(localStorage.getItem('pf2')||'{}')}catch(e){}
+if(!Object.keys(accts).length){try{const o=JSON.parse(localStorage.getItem('pf')||'{}');if(Object.keys(o).length)accts.Default=o}catch(e){}}
+function pick(n){cur=n;store=n?(accts[n]=accts[n]||{}):{};const m=meta[n];$('don').checked=!!(m&&m.on);$('dp').value=m&&m.pct?m.pct:7;syncDisc()}
+function save(){try{localStorage.setItem('pf2',JSON.stringify(accts))}catch(e){}draw()}
+function draw(){
+ const ns=Object.keys(accts);if(!ns.includes(cur))pick(ns[0]||'');
+ $('acc').innerHTML=ns.length?ns.map(n=>`<option${n===cur?' selected':''}>${esc(n)}</option>`).join(''):'<option>No account yet</option>';
+ $('count').textContent=ns.length?Object.keys(store).length+' items in this account, '+ns.length+' accounts':'Create an account to start';
+}
+$('acc').onchange=()=>{const v=$('acc').value;if(!accts[v])return;pick(v);draw();ovr={};parse();clearFind()};
+$('newacc').onclick=()=>{const n=(prompt('Account number or name')||'').trim();if(!n)return;if(!accts[n])accts[n]={};pick(n);save();clearFind()};
+$('delacc').onclick=()=>{if(cur&&confirm('Delete account "'+cur+'" and all its prices?\n\nIt will also be gone from the next Excel file you download.')){delete accts[cur];pick('');save();clearFind()}};
+function before(a,d){return d>0?a/(1-d/100):a}
+
+/* tabs */
+['1','2','3'].forEach(n=>$('b'+n).onclick=()=>{
+ ['1','2','3'].forEach(m=>{$('b'+m).classList.toggle('on',m==n);$('t'+m).classList.toggle('on',m==n)});if(n=='3')list()});
+
+/* tab 3: edit list */
+function list(){
+ const q=$('q').value.trim().toLowerCase(),all=Object.values(store);
+ const m=q?all.filter(r=>(r.code+' '+r.desc).toLowerCase().includes(q)):all,show=m.slice(0,150);
+ $('s3').textContent=!cur?'Create or select an account first':!all.length?'This account has no items yet':m.length>150?'Showing 150 of '+m.length+'. Search to narrow down.':m.length+' items';
+ $('r3').innerHTML=show.length?'<tr><th>Code<th>Description<th>Packing<th>Discount %<th class=n>Without discount<th class=n>With discount<th></tr>'+show.map(r=>`<tr data-k="${esc(key(r.code))}"><td>${esc(r.code)}</td><td class=d>${esc(r.desc)}</td><td>${esc(r.pack)}</td><td><input class=ed style="width:70px" data-f="disc" type="number" min="0" max="99" step="0.1" value="${r.disc||0}"></td><td><input class=ed data-f="before" type="number" min="0" step="0.0001" value="${fmt(r.before)}"></td><td><input class=ed data-f="after" type="number" min="0" step="0.0001" value="${fmt(r.after)}"></td><td><button class="ghost" data-del="1">Delete</button></td></tr>`).join(''):'';
+}
+$('q').addEventListener('input',list);
+$('r3').addEventListener('change',e=>{
+ const t=e.target,tr=t.closest('tr'),f=t.dataset.f;if(!tr||!f)return;
+ const r=store[tr.dataset.k];if(!r)return;
+ const v=parseFloat(t.value);if(isNaN(v)||v<0){list();return}
+ if(f==='disc')r.disc=Math.min(v,99);else if(f==='after')r.after=v;else r.after=v*(1-(r.disc||0)/100);
+ r.before=before(r.after,r.disc||0);save();
+ const g=x=>tr.querySelector('[data-f='+x+']');g('disc').value=r.disc||0;g('before').value=fmt(r.before);g('after').value=fmt(r.after);
+});
+$('r3').addEventListener('click',e=>{
+ const tr=e.target.closest('tr');if(!tr||!e.target.dataset.del)return;const r=store[tr.dataset.k];if(!r)return;
+ if(confirm('Delete '+r.code+' from account "'+cur+'"?')){delete store[tr.dataset.k];save();list()}
+});
+
+/* tab 1: find */
+function find(){
+ let c=$('codes').value.split(/\r?\n/).map(l=>l.trim().split(/[\s,]+/)[0]).filter(Boolean);
+ if($('dedupe').checked)c=[...new Set(c)];
+ const sd=$('showd').checked;let ok=0,miss=0,h='';out=[];
+ c.forEach(x=>{const r=store[key(x)];
+  if(r){ok++;out.push(r);
+   h+=`<tr><td>${esc(r.code)}</td><td class=d>${esc(r.desc)}</td><td>${esc(r.pack)}</td>`+
+   (sd?`<td class=n>${r.disc>0?fmt(r.before):''}</td><td class=n>${fmt(r.after)}</td><td>${r.disc>0?'<span class=tick>✓</span> '+r.disc+'%':''}</td>`:`<td class=n>${fmt(r.after)}</td><td>${r.disc>0?r.disc+'%':''}</td>`)+'</tr>';
+  }else{miss++;out.push({code:x,desc:'NOT FOUND',pack:'',before:'',after:'',disc:''});
+   h+=`<tr class=miss><td>${esc(x)}</td><td class=d>Not found</td><td></td><td></td><td></td>${sd?'<td></td>':''}</tr>`}});
+ $('r1').innerHTML=c.length?'<tr><th>Code<th>Description<th>Packing'+(sd?'<th class=n>Without discount<th class=n>With discount<th>Discount':'<th class=n>Price<th>Discount')+'</tr>'+h:'';
+ $('s1').textContent=c.length?ok+' found'+(miss?', '+miss+' not found':''):'';
+}
+let searched=false;
+function clearFind(){list();searched=false;out=[];$('r1').innerHTML='';$('s1').textContent=''}
+$('go').onclick=()=>{
+ if(!cur){alert('Create or select an account first');return}
+ if(!$('codes').value.trim()){$('s1').textContent='Paste some codes first';return}
+ if(!confirm('Search prices in account "'+cur+'"?\n\nPress OK only if this is the right account.'))return;
+ searched=true;find();
+};
+['showd','dedupe'].forEach(i=>$(i).addEventListener('input',()=>{if(searched)find()}));
+$('copy').onclick=()=>{
+ const sd=$('showd').checked;
+ const t=out.map(r=>[r.code,r.desc,r.pack].concat(sd?[r.disc>0?fmt(r.before):'',r.after===''?'':fmt(r.after),r.disc>0?r.disc+'%':'']:[r.after===''?'':fmt(r.after),r.disc>0?r.disc+'%':'']).join('\t')).join('\n');
+ const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();
+ try{navigator.clipboard&&navigator.clipboard.writeText(t)}catch(e){}
+ try{document.execCommand('copy')}catch(e){}a.remove();$('s1').textContent='Copied';
+};
+
+$('pdf').onclick=()=>{
+ if(!out.length){$('s1').textContent='Nothing to download yet';return}
+ if(!window.jspdf){alert('The PDF tool did not load. Check your internet connection and reload the page.');return}
+ const sd=$('showd').checked,doc=new window.jspdf.jsPDF({orientation:'landscape'});
+ doc.setFontSize(15);doc.text('Price List',14,14);
+ doc.setFontSize(10);doc.text('Account: '+(cur||'-')+'     Date: '+new Date().toLocaleDateString('en-GB'),14,20);
+ const head=[['Code','Description','Packing'].concat(sd?['Without discount','With discount','Discount']:['Price','Discount'])];
+ const body=out.map(r=>[r.code,r.desc,r.pack].concat(sd?[r.disc>0?fmt(r.before):'',r.after===''?'':fmt(r.after),r.disc>0?r.disc+'%':'']:[r.after===''?'':fmt(r.after),r.disc>0?r.disc+'%':'']));
+ const right={};for(let i=3;i<(sd?5:4);i++)right[i]={halign:'right'};
+ doc.autoTable({head,body,startY:25,styles:{fontSize:9},headStyles:{fillColor:[11,107,87]},columnStyles:right,
+  didParseCell:h=>{if(h.section==='body'&&h.row.raw[1]==='NOT FOUND')h.cell.styles.textColor=[180,35,24]}});
+ doc.save('prices-'+String(cur||'list').replace(/[^\w-]+/g,'_')+'.pdf');
+};
+
+/* tab 2: add */
+let choice={},groups=[],skip=0,unres=0,ovr={};
+function discOf(k){return ovr[k]!==undefined?ovr[k]:($('don').checked?(parseFloat($('dp').value)||0):0)}
+function parse(){
+ syncDisc();skip=0;
+ const idx={};groups=[];
+ $('inv').value.split(/\r?\n/).forEach(l=>{
+  l=l.trim();if(!l)return;
+  let p=l.split('\t').map(s=>s.trim()).filter(Boolean);
+  if(p.length<4)p=l.split(/\s{2,}/);
+  const code=p[0],after=parseFloat(String(p[p.length-1]).replace(/,/g,''));
+  if(!/^[A-Za-z0-9-]+$/.test(code)||isNaN(after)||p.length<3){skip++;return}
+  const r={code,desc:p[1]||'',pack:p[2]||'',unit:p.length>=5?p[p.length-2]:'',q:p.length>=5?p[p.length-3]:'',after,disc:0,before:after};
+  const k=key(code);
+  if(idx[k]===undefined){idx[k]=groups.length;groups.push({k,opts:[r]})}
+  else{const g=groups[idx[k]];if(!g.opts.find(x=>fmt(x.after)===fmt(r.after)))g.opts.push(r)}
+ });
+ $('cf').innerHTML=groups.filter(g=>g.opts.length>1).map(g=>{
+  const f=g.opts[0];
+  return `<div class="cf"><b>${esc(f.code)}</b> ${esc(f.desc)}<br><span class="sum">This code has different prices. Which one should be saved?</span><br>`+
+  g.opts.map(o=>`<label><input type="radio" name="c${esc(g.k)}" data-k="${esc(g.k)}" value="${fmt(o.after)}"${choice[g.k]===fmt(o.after)?' checked':''}> ${fmt(o.after)}${o.q?' (qty '+esc(o.q)+')':''}</label>`).join('')+'</div>'}).join('');
+ render();
+}
+function render(){
+ unres=0;parsed=[];
+ groups.forEach(g=>{
+  if(g.opts.length==1){parsed.push(g.opts[0]);return}
+  const o=g.opts.find(x=>fmt(x.after)===choice[g.k]);
+  if(o)parsed.push(o);else unres++;
+ });
+ parsed.forEach(r=>{r.disc=discOf(key(r.code));r.before=before(r.after,r.disc)});
+ $('r2').innerHTML=parsed.length?'<tr><th>Code<th>Description<th>Packing<th>Discount %<th class=n>Without discount<th class=n>With discount</tr>'+
+  parsed.map(r=>`<tr><td>${esc(r.code)}</td><td class=d>${esc(r.desc)}</td><td>${esc(r.pack)}</td><td><input class="rd" type="number" min="0" max="99" step="0.1" data-k="${esc(key(r.code))}" data-a="${r.after}" value="${r.disc}"></td><td class="n bf">${r.disc>0?fmt(r.before):''}</td><td class=n>${fmt(r.after)}</td></tr>`).join(''):'';
+ const m=[];
+ if(parsed.length)m.push(parsed.length+' items ready');
+ if(unres)m.push('choose a price for '+unres+' repeated code'+(unres>1?'s':''));
+ if(skip)m.push(skip+' lines could not be read');
+ $('s2').textContent=m.join(', ');
+}
+$('cf').addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.k){choice[t.dataset.k]=t.value;render()}});
+$('inv').addEventListener('input',parse);
+['don','dp'].forEach(i=>$(i).addEventListener('input',()=>{ovr={};parse()}));
+$('r2').addEventListener('input',e=>{const t=e.target;if(!t.classList.contains('rd'))return;
+ const v=parseFloat(t.value)||0;ovr[t.dataset.k]=v;t.closest('tr').querySelector('.bf').textContent=v>0?fmt(before(+t.dataset.a,v)):''});
+$('add').onclick=()=>{
+ if(!cur){$('s2').textContent='Create or select an account first';return}
+ if(unres){$('s2').textContent='Choose a price for the '+unres+' repeated code'+(unres>1?'s':'')+' first';return}
+ if(!parsed.length){$('s2').textContent='Nothing to add yet';return}
+ if(!confirm('Add '+parsed.length+' items to account "'+cur+'"?\n\nPress OK only if this is the right account.'))return;
+ parsed.forEach(r=>{r.disc=discOf(key(r.code));r.before=before(r.after,r.disc);const c={...r};delete c.q;store[key(r.code)]=c});meta[cur]={on:$('don').checked,pct:parseFloat($('dp').value)||0};saveMeta();save();
+ $('s2').textContent=parsed.length+' items added. Total '+Object.keys(store).length;
+ $('inv').value='';parsed=[];groups=[];choice={};ovr={};$('cf').innerHTML='';$('r2').innerHTML='';clearFind();
+};
+
+/* excel */
+$('dl').onclick=()=>{
+ const rows=Object.keys(accts).flatMap(a=>Object.values(accts[a]).map(r=>({'Account':a,'Code':r.code,'Description':r.desc,'Packing':r.pack,'Unit':r.unit||'','Price After':r.after,'Discount %':r.disc,'Price Before':+fmt(r.before)})));
+ if(!rows.length){alert('Nothing to download yet.');return}
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Prices');
+ XLSX.writeFile(wb,'price-list.xlsx');
+};
+$('imp').onchange=e=>{
+ const f=e.target.files[0];if(!f)return;if(!confirm('Replace everything in this page with the file "'+f.name+'"?\n\nAccounts and prices in the page that are not in the file will be removed. Download Excel first if you are not sure.')){e.target.value='';return}const fr=new FileReader();
+ fr.onload=()=>{
+  try{
+   const wb=XLSX.read(fr.result,{type:'array'});
+   const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});let n=0;const bk=[accts,meta,cur],keep=cur;accts={};meta={};cur='';
+   rows.forEach(o=>{
+    const m={};Object.keys(o).forEach(k=>m[k.toLowerCase().replace(/[^a-z]/g,'')]=o[k]);
+    const v=Object.values(o),o1=m.account!==undefined?1:0;
+    const an=String(m.account||'').trim()||keep||'Default';
+    const code=String(m.code!==undefined?m.code:v[o1]).trim();if(!code)return;
+    const after=parseFloat(m.priceafter!==undefined?m.priceafter:v[o1+4]);if(isNaN(after))return;
+    const disc=parseFloat(m.discount!==undefined?m.discount:v[o1+5])||0;
+    const A=accts[an]=accts[an]||{};if(disc>0||!meta[an])meta[an]={on:disc>0,pct:disc>0?disc:7};
+    A[key(code)]={code,desc:String(m.description!==undefined?m.description:v[o1+1]),pack:String(m.packing!==undefined?m.packing:v[o1+2]),unit:String(m.unit!==undefined?m.unit:v[o1+3]),after,disc,before:before(after,disc)};n++;
+   });
+   if(!n){accts=bk[0];meta=bk[1];cur=bk[2];pick(cur);alert('No prices found in this file. Nothing was changed.');return}saveMeta();save();pick(cur);parse();clearFind();alert(n+' items imported.');
+  }catch(err){alert('Could not read this file.')}
+ };
+ fr.readAsArrayBuffer(f);e.target.value='';
+};
+save();
+</script></body></html>
